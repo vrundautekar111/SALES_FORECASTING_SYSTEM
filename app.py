@@ -136,7 +136,6 @@ def build_forecast(df, periods=6):
     if len(training_data) < 5:
         raise ValueError("Not enough data to train the model.")
 
-    # Evaluate on later months, preserving time order.
     split = max(3, int(len(training_data) * 0.8))
     split = min(split, len(training_data) - 1)
 
@@ -194,7 +193,6 @@ def build_forecast(df, periods=6):
             "sales": round(prediction, 2)
         })
 
-        # Use each forecast as an input for the next month.
         sales_history.append(prediction)
 
     return monthly, forecast_rows, mae, rmse
@@ -266,8 +264,6 @@ def upload():
 
     try:
         df = pd.read_csv(file)
-
-        # Validate the uploaded file before replacing existing data.
         date_col = next(
             (c for c in df.columns
              if c.strip().lower() in
@@ -304,8 +300,6 @@ def upload():
             raise ValueError(
                 "Upload at least 8 valid sales records."
             )
-
-        # Validate that the data can actually be forecast.
         monthly_test = (
             test_df.groupby("date")["sales"].sum()
             .resample("MS").sum()
@@ -316,7 +310,6 @@ def upload():
                 "Please provide at least 8 months of sales data."
             )
 
-        # Keep the original file if validation fails.
         df.to_csv(DATA_FILE, index=False)
 
         return jsonify({
