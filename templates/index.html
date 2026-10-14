@@ -1,0 +1,429 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>SalesPulse | Sales Forecasting System</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+<div class="app-shell">
+
+    <aside class="sidebar">
+        <div class="brand">
+            <div class="brand-icon">S</div>
+            <div>
+                <h2>SalesPulse</h2>
+                <small>ANALYTICS SUITE</small>
+            </div>
+        </div>
+
+        <p class="nav-label">WORKSPACE</p>
+
+        <a class="nav-link active" href="/">▦ &nbsp; Overview</a>
+        <a class="nav-link" href="#forecast">⌁ &nbsp; Forecasting</a>
+        <a class="nav-link" href="#data">▤ &nbsp; Data management</a>
+
+        <div class="sidebar-status">
+            <span class="status-dot"></span>
+            <div>
+                <strong>Forecast engine</strong>
+                <small>Random Forest · Ready</small>
+            </div>
+        </div>
+    </aside>
+
+    <main class="main-content">
+
+        <header class="topbar">
+            <div>
+                <p class="eyebrow">BUSINESS INTELLIGENCE / SALES</p>
+                <h1>Sales overview</h1>
+                <p class="subtitle">
+                    Track sales performance and plan the months ahead.
+                </p>
+            </div>
+
+            <div class="topbar-right">
+                <span class="live-badge">● LIVE DASHBOARD</span>
+                <div class="avatar">SP</div>
+            </div>
+        </header>
+
+        {% if error %}
+        <div class="error-box">
+            <h3>Dashboard needs attention</h3>
+            <p>{{ error }}</p>
+            <small>
+                Check your CSV columns and ensure at least eight
+                valid monthly records are available.
+            </small>
+        </div>
+        {% else %}
+
+        <section class="metrics-grid">
+
+            <article class="metric-card">
+                <div class="metric-heading">
+                    <span>Total sales</span>
+                    <span class="metric-icon purple">↗</span>
+                </div>
+                <h2>₹{{ "{:,.0f}".format(total) }}</h2>
+                <div class="metric-footer">
+                    <span>All historical records</span>
+                    <span class="pill">{{ rows }} periods</span>
+                </div>
+            </article>
+
+            <article class="metric-card">
+                <div class="metric-heading">
+                    <span>Average monthly sales</span>
+                    <span class="metric-icon blue">◷</span>
+                </div>
+                <h2>₹{{ "{:,.0f}".format(avg) }}</h2>
+                <div class="metric-footer">
+                    <span>Historical average</span>
+                    <span class="pill">Monthly</span>
+                </div>
+            </article>
+
+            <article class="metric-card">
+                <div class="metric-heading">
+                    <span>Latest month</span>
+                    <span class="metric-icon green">▥</span>
+                </div>
+                <h2>₹{{ "{:,.0f}".format(latest) }}</h2>
+                <div class="metric-footer">
+                    <span>Change vs previous month</span>
+                    <span class="pill {{ 'positive' if growth >= 0 else 'negative' }}">
+                        {{ "+" if growth >= 0 else "" }}{{ growth }}%
+                    </span>
+                </div>
+            </article>
+
+            <article class="metric-card">
+                <div class="metric-heading">
+                    <span>Model MAE</span>
+                    <span class="metric-icon orange">◎</span>
+                </div>
+                <h2>₹{{ "{:,.0f}".format(mae) }}</h2>
+                <div class="metric-footer">
+                    <span>Holdout prediction error</span>
+                    <span class="pill">Lower is better</span>
+                </div>
+            </article>
+
+        </section>
+
+        <section class="dashboard-grid">
+
+            <article class="panel chart-panel">
+                <div class="panel-heading">
+                    <div>
+                        <h2>Sales performance & forecast</h2>
+                        <p>Historical sales and a six-month outlook</p>
+                    </div>
+
+                    <div class="legend">
+                        <span><i class="historical-key"></i> Historical</span>
+                        <span><i class="forecast-key"></i> Forecast</span>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <canvas id="salesChart"></canvas>
+                </div>
+
+                <div class="insight">
+                    <span class="insight-icon">✦</span>
+                    <p>
+                        <strong>Forecast insight</strong><br>
+                        Use these projections as planning estimates.
+                        Actual sales may differ due to seasonality,
+                        pricing, promotions, and market conditions.
+                    </p>
+                </div>
+            </article>
+
+            <article class="panel forecast-panel" id="forecast">
+                <div class="panel-heading">
+                    <div>
+                        <h2>Forecast summary</h2>
+                        <p>Next six months</p>
+                    </div>
+                    <span class="model-badge">AI MODEL</span>
+                </div>
+
+                <div class="forecast-total">
+                    <span>Projected sales</span>
+                    <h2>
+                        ₹{{ "{:,.0f}".format(
+                            forecast | sum(attribute='sales')
+                        ) }}
+                    </h2>
+                    <small>Combined six-month projection</small>
+                </div>
+
+                <div class="forecast-list">
+                    {% for item in forecast %}
+                    <div class="forecast-row">
+                        <div class="month-number">{{ loop.index }}</div>
+
+                        <div class="month-info">
+                            <strong>{{ item.date[0:7] }}</strong>
+                            <small>Monthly projection</small>
+                        </div>
+
+                        <strong class="forecast-value">
+                            ₹{{ "{:,.0f}".format(item.sales) }}
+                        </strong>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <a class="download-btn" href="/download-forecast">
+                    ↓ &nbsp; Download forecast CSV
+                </a>
+            </article>
+
+        </section>
+
+        <section class="bottom-grid">
+
+            <article class="panel" id="data">
+                <div class="panel-heading">
+                    <div>
+                        <h2>Upload sales data</h2>
+                        <p>Analyze your own business records.</p>
+                    </div>
+                    <span class="metric-icon purple">↑</span>
+                </div>
+
+                <form id="uploadForm" class="upload-box">
+                    <input type="file"
+                           id="csvFile"
+                           name="file"
+                           accept=".csv"
+                           required>
+
+                    <div class="upload-icon">⇧</div>
+
+                    <strong>Choose your CSV file</strong>
+
+                    <p>
+                        Required columns:
+                        <code>date</code> and <code>sales</code>
+                    </p>
+
+                    <button type="submit" id="uploadButton">
+                        Upload & analyze
+                    </button>
+                </form>
+
+                <p id="uploadMessage" aria-live="polite"></p>
+            </article>
+
+            <article class="panel">
+                <div class="panel-heading">
+                    <div>
+                        <h2>Model diagnostics</h2>
+                        <p>Forecasting configuration</p>
+                    </div>
+                    <span class="metric-icon blue">⌘</span>
+                </div>
+
+                <div class="diagnostic-row">
+                    <span>Algorithm</span>
+                    <strong>Random Forest Regressor</strong>
+                </div>
+
+                <div class="diagnostic-row">
+                    <span>Forecast horizon</span>
+                    <strong>6 months</strong>
+                </div>
+
+                <div class="diagnostic-row">
+                    <span>RMSE</span>
+                    <strong>₹{{ "{:,.0f}".format(rmse) }}</strong>
+                </div>
+
+                <div class="diagnostic-row">
+                    <span>Input frequency</span>
+                    <strong>Monthly totals</strong>
+                </div>
+
+                <p class="disclaimer">
+                    Evaluation metrics are calculated on a later,
+                    time-ordered holdout period. They do not guarantee
+                    future forecast accuracy.
+                </p>
+            </article>
+
+        </section>
+
+        {% endif %}
+
+        <footer>
+            SalesPulse Analytics · Flask + Python + Machine Learning
+        </footer>
+    </main>
+</div>
+
+<script>
+const historyDates = {{ history_dates | tojson }};
+const historySales = {{ history_sales | tojson }};
+const forecastRows = {{ forecast | tojson }};
+
+const chartCanvas = document.getElementById("salesChart");
+
+if (chartCanvas) {
+    const labels = [
+        ...historyDates.map(date => date.slice(0, 7)),
+        ...forecastRows.map(item => item.date.slice(0, 7))
+    ];
+
+    const historicalData = [
+        ...historySales,
+        ...Array(forecastRows.length).fill(null)
+    ];
+
+    const forecastData = [
+        ...Array(Math.max(0, historySales.length - 1)).fill(null),
+        ...(historySales.length
+            ? [historySales[historySales.length - 1]]
+            : []),
+        ...forecastRows.map(item => item.sales)
+    ];
+
+    new Chart(chartCanvas, {
+        type: "line",
+
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: "Historical sales",
+                    data: historicalData,
+                    borderColor: "#8b7cff",
+                    backgroundColor: "rgba(139,124,255,0.12)",
+                    borderWidth: 2.5,
+                    fill: true,
+                    tension: 0.35,
+                    pointRadius: 2
+                },
+                {
+                    label: "Forecast",
+                    data: forecastData,
+                    borderColor: "#32d6b0",
+                    backgroundColor: "transparent",
+                    borderWidth: 2.5,
+                    borderDash: [6, 5],
+                    fill: false,
+                    tension: 0.35,
+                    pointRadius: 3
+                }
+            ]
+        },
+
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+
+            interaction: {
+                intersect: false,
+                mode: "index"
+            },
+
+            plugins: {
+                legend: { display: false },
+
+                tooltip: {
+                    backgroundColor: "#171a2a",
+                    borderColor: "#343850",
+                    borderWidth: 1,
+
+                    callbacks: {
+                        label: function(context) {
+                            if (context.raw == null) return "";
+
+                            return context.dataset.label + ": ₹" +
+                                Number(context.raw).toLocaleString("en-IN", {
+                                    maximumFractionDigits: 0
+                                });
+                        }
+                    }
+                }
+            },
+
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: {
+                        color: "#858ba8",
+                        maxTicksLimit: 9,
+                        maxRotation: 0
+                    }
+                },
+
+                y: {
+                    grid: {
+                        color: "rgba(130,138,170,0.12)"
+                    },
+                    ticks: {
+                        color: "#858ba8",
+                        callback: value =>
+                            "₹" + (value / 1000).toFixed(0) + "k"
+                    }
+                }
+            }
+        }
+    });
+}
+
+const uploadForm = document.getElementById("uploadForm");
+
+if (uploadForm) {
+    uploadForm.addEventListener("submit", async function(event) {
+        event.preventDefault();
+
+        const button = document.getElementById("uploadButton");
+        const message = document.getElementById("uploadMessage");
+
+        button.disabled = true;
+        button.textContent = "Analyzing...";
+
+        try {
+            const response = await fetch("/upload", {
+                method: "POST",
+                body: new FormData(uploadForm)
+            });
+
+            const result = await response.json();
+
+            message.textContent = result.message;
+            message.className = result.ok ? "success" : "failure";
+
+            if (result.ok) {
+                setTimeout(() => window.location.reload(), 900);
+            }
+        } catch (error) {
+            message.textContent =
+                "Upload failed. Check your connection and try again.";
+            message.className = "failure";
+        } finally {
+            button.disabled = false;
+            button.textContent = "Upload & analyze";
+        }
+    });
+}
+</script>
+
+</body>
+</html>
