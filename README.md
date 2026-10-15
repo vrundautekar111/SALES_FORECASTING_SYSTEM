@@ -4,7 +4,7 @@ The Sales Forecasting and Prediction System is a machine learning project design
 
 The system helps users understand sales performance, identify trends, evaluate prediction accuracy, and make data-driven business decisions.
 
-Key Features
+Key Features 
 
 Sales Data Analysis: Analyze historical sales data to understand monthly sales trends.
 
